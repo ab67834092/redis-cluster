@@ -28,6 +28,7 @@ public class CacheRedisServiceImpl implements CacheRedisService {
      * 解决方法：
      * 1.数据实时同步失效，强一致性，数据库更新数据后淘汰缓存，
      * 为避免缓存雪崩，更新缓存的过程需要锁控制，同一时间只允许一个请求访问数据库
+     * 为了保证数据一致性，还要加上缓存失效
      * 2.
      */
     @Override
