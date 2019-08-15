@@ -19,6 +19,9 @@ public class CjbRedisLock {
     //锁等待时间 自旋时间 毫秒
     private int waitTime = 5*1000;
 
+    //自旋的间隔时间
+    private int intervalTime=100;
+
     public CjbRedisLock(JedisCluster jedisCluster, String lockKey) {
         this.jedisCluster = jedisCluster;
         this.lockKey = lockKey;
@@ -34,20 +37,30 @@ public class CjbRedisLock {
         this.expireTime = expireTime;
     }
 
-    public synchronized boolean lock(){
+    public boolean lock(){
         int time = waitTime;
-        while(time>0){
-            String expiresStr = String.valueOf(System.currentTimeMillis() + expireTime);
-            if(jedisCluster.setnx(lockKey,expiresStr)==1L){
+        //自旋等待
+        //while(time>0){
+            //锁的过期时间
+            String expiresTimeStr = String.valueOf(System.currentTimeMillis() + expireTime+1);
+            if(jedisCluster.setnx(lockKey,expiresTimeStr)==1L){
                 return true;
             }
-
-            String currentValueStr = jedisCluster.get(lockKey);
-            if(!StringUtils.isEmpty(currentValueStr) && Long.parseLong(currentValueStr)<System.currentTimeMillis()){
-
+            //当前lockKey的过期时间
+            String currentExpiresTimeStr = jedisCluster.get(lockKey);
+            if(!StringUtils.isEmpty(currentExpiresTimeStr) && Long.parseLong(currentExpiresTimeStr)<System.currentTimeMillis()){
+                String oldExpiresTimeStr = jedisCluster.getSet(lockKey, expiresTimeStr);
+                if(!StringUtils.isEmpty(oldExpiresTimeStr) && currentExpiresTimeStr.equals(oldExpiresTimeStr)){
+                    System.out.println("我进来了！！！");
+                    return true;
+                }
             }
-
-        }
+        //    time-=intervalTime;
+        //}
         return false;
+    }
+
+    public void unlock(){
+        jedisCluster.del(lockKey);
     }
 }
