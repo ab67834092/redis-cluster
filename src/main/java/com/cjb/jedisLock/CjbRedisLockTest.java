@@ -33,7 +33,7 @@ public class CjbRedisLockTest {
                 public void run() {
                     CjbRedisLock cjbRedisLock = new CjbRedisLock(jedisCluster,"992");
                     try {
-                        if(cjbRedisLock.lock1()){
+                        if(cjbRedisLock.lock()){
                             //业务代码
 //                            System.out.println("只有我获取到了");
                         }
@@ -42,9 +42,9 @@ public class CjbRedisLockTest {
                         e.printStackTrace();
                     }
                     //如果注释掉说明没有释放锁，那么就是死锁
-                    finally {
-                        cjbRedisLock.unlock();
-                    }
+//                    finally {
+//                        cjbRedisLock.unlock();
+//                    }
                 }
             });
         }

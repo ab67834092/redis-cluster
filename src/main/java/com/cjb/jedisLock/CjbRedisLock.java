@@ -3,7 +3,10 @@ package com.cjb.jedisLock;
 import org.apache.tomcat.jni.Thread;
 import org.springframework.util.StringUtils;
 import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.params.SetParams;
 
+import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -25,6 +28,11 @@ public class CjbRedisLock {
     //自旋的间隔时间
     private int intervalTime=1000;
 
+
+    private static final String LOCK_SUCCESS = "OK";
+
+    private static final Long RELEASE_SUCCESS = 1L;
+
     public CjbRedisLock(JedisCluster jedisCluster, String lockKey) {
         this.jedisCluster = jedisCluster;
         this.lockKey = lockKey;
@@ -41,64 +49,23 @@ public class CjbRedisLock {
     }
 
     /**
-     * 包含自旋等待
+     * 尝试锁
+     * 参考：https://blog.csdn.net/josn_hao/article/details/78412694
      * @return
      */
     public boolean lock(){
-        int time = waitTime;
-        //自旋等待
-        while(time>0){
-            //锁的过期时间
-            String expiresTimeStr = String.valueOf(System.currentTimeMillis() + expireTime+1);
-            if(jedisCluster.setnx(lockKey,expiresTimeStr)==1L){
-                return true;
-            }
-            //当前lockKey的过期时间
-            String currentExpiresTimeStr = jedisCluster.get(lockKey);
-            if(!StringUtils.isEmpty(currentExpiresTimeStr) && Long.parseLong(currentExpiresTimeStr)<System.currentTimeMillis()){
-                System.out.println("我进来了1111111111111！！！=========================");
-                String oldExpiresTimeStr = jedisCluster.getSet(lockKey, expiresTimeStr);
-                if(!StringUtils.isEmpty(oldExpiresTimeStr) && currentExpiresTimeStr.equals(oldExpiresTimeStr)){
-                    System.out.println("我进来了！！！=========================");
-                    return true;
-                }
-            }
-            time-=intervalTime;
-            try {
-                TimeUnit.MILLISECONDS.sleep(intervalTime);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        String result  = jedisCluster.set(lockKey, UUID.randomUUID().toString(), SetParams.setParams().nx().px(expireTime));
+        if (LOCK_SUCCESS.equals(result)) {
+            return true;
         }
         return false;
     }
 
     /**
-     * 不包含自旋等待
-     * @return
+     * 释放锁
      */
-    public boolean lock1(){
-        //锁的过期时间
-        String expiresTimeStr = String.valueOf(System.currentTimeMillis() + expireTime+1);
-        if(jedisCluster.setnx(lockKey,expiresTimeStr)==1L){
-            return true;
-        }
-        //以下代码，可以解决多线程环境下，如果业务出现异常，没有释放锁，就会出现死锁
-        //当前lockKey的过期时间
-        String currentExpiresTimeStr = jedisCluster.get(lockKey);
-        //这里说明超时了，没有及时释放锁
-        if(!StringUtils.isEmpty(currentExpiresTimeStr) && Long.parseLong(currentExpiresTimeStr)<System.currentTimeMillis()){
-            String oldExpiresTimeStr = jedisCluster.getSet(lockKey, expiresTimeStr);
-            //这里如果不判断，如果当2个lockKey同时到达这里，会同时获取到锁，再一次出现了线程安全问题
-            if(!StringUtils.isEmpty(oldExpiresTimeStr) && currentExpiresTimeStr.equals(oldExpiresTimeStr)){
-                System.out.println("只有我进来了");
-                return true;
-            }
-        }
-        return false;
-    }
-
     public void unlock(){
-        jedisCluster.del(lockKey);
+        String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+        jedisCluster.eval(script, Collections.singletonList(lockKey), Collections.singletonList(requestId));
     }
 }
