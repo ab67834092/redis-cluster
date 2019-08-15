@@ -25,7 +25,7 @@ public class CjbRedisLockTest {
     @Test
     public void testString (){
         ExecutorService executorService = Executors.newCachedThreadPool();
-        int num = 1000;
+        int num = 1;
         final CountDownLatch latch = new CountDownLatch(num);
         for(int i=1;i<=num;i++){
             executorService.execute(new Runnable() {

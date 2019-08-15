@@ -1,7 +1,10 @@
 package com.cjb.jedisLock;
 
+import org.apache.tomcat.jni.Thread;
 import org.springframework.util.StringUtils;
 import redis.clients.jedis.JedisCluster;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * 自己重写分布式锁
@@ -20,7 +23,7 @@ public class CjbRedisLock {
     private int waitTime = 5*1000;
 
     //自旋的间隔时间
-    private int intervalTime=100;
+    private int intervalTime=1000;
 
     public CjbRedisLock(JedisCluster jedisCluster, String lockKey) {
         this.jedisCluster = jedisCluster;
@@ -37,10 +40,10 @@ public class CjbRedisLock {
         this.expireTime = expireTime;
     }
 
-    public boolean lock(){
+    public synchronized boolean lock(){
         int time = waitTime;
         //自旋等待
-        //while(time>0){
+        while(time>0){
             //锁的过期时间
             String expiresTimeStr = String.valueOf(System.currentTimeMillis() + expireTime+1);
             if(jedisCluster.setnx(lockKey,expiresTimeStr)==1L){
@@ -49,18 +52,24 @@ public class CjbRedisLock {
             //当前lockKey的过期时间
             String currentExpiresTimeStr = jedisCluster.get(lockKey);
             if(!StringUtils.isEmpty(currentExpiresTimeStr) && Long.parseLong(currentExpiresTimeStr)<System.currentTimeMillis()){
+                System.out.println("我进来了1111111111111！！！=========================");
                 String oldExpiresTimeStr = jedisCluster.getSet(lockKey, expiresTimeStr);
                 if(!StringUtils.isEmpty(oldExpiresTimeStr) && currentExpiresTimeStr.equals(oldExpiresTimeStr)){
-                    System.out.println("我进来了！！！");
+                    System.out.println("我进来了！！！=========================");
                     return true;
                 }
             }
-        //    time-=intervalTime;
-        //}
+            time-=intervalTime;
+            try {
+                TimeUnit.MILLISECONDS.sleep(intervalTime);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         return false;
     }
 
-    public void unlock(){
+    public synchronized void unlock(){
         jedisCluster.del(lockKey);
     }
 }
