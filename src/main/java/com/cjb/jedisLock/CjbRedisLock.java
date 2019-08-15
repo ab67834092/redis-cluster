@@ -40,7 +40,11 @@ public class CjbRedisLock {
         this.expireTime = expireTime;
     }
 
-    public synchronized boolean lock(){
+    /**
+     * 包含自旋等待
+     * @return
+     */
+    public boolean lock(){
         int time = waitTime;
         //自旋等待
         while(time>0){
@@ -69,7 +73,32 @@ public class CjbRedisLock {
         return false;
     }
 
-    public synchronized void unlock(){
+    /**
+     * 不包含自旋等待
+     * @return
+     */
+    public boolean lock1(){
+        //锁的过期时间
+        String expiresTimeStr = String.valueOf(System.currentTimeMillis() + expireTime+1);
+        if(jedisCluster.setnx(lockKey,expiresTimeStr)==1L){
+            return true;
+        }
+        //以下代码，可以解决多线程环境下，如果业务出现异常，没有释放锁，就会出现死锁
+        //当前lockKey的过期时间
+        String currentExpiresTimeStr = jedisCluster.get(lockKey);
+        //这里说明超时了，没有及时释放锁
+        if(!StringUtils.isEmpty(currentExpiresTimeStr) && Long.parseLong(currentExpiresTimeStr)<System.currentTimeMillis()){
+            String oldExpiresTimeStr = jedisCluster.getSet(lockKey, expiresTimeStr);
+            //这里如果不判断，如果当2个lockKey同时到达这里，会同时获取到锁，再一次出现了线程安全问题
+            if(!StringUtils.isEmpty(oldExpiresTimeStr) && currentExpiresTimeStr.equals(oldExpiresTimeStr)){
+                System.out.println("只有我进来了");
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void unlock(){
         jedisCluster.del(lockKey);
     }
 }

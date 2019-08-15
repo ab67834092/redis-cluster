@@ -25,22 +25,24 @@ public class CjbRedisLockTest {
     @Test
     public void testString (){
         ExecutorService executorService = Executors.newCachedThreadPool();
-        int num = 1;
+        int num = 1000;
         final CountDownLatch latch = new CountDownLatch(num);
         for(int i=1;i<=num;i++){
             executorService.execute(new Runnable() {
                 @Override
                 public void run() {
-                    CjbRedisLock cjbRedisLock = new CjbRedisLock(jedisCluster,"990");
+                    CjbRedisLock cjbRedisLock = new CjbRedisLock(jedisCluster,"992");
                     try {
-                        if(cjbRedisLock.lock()){
+                        if(cjbRedisLock.lock1()){
                             //业务代码
-                            System.out.println("只有我获取到了");
+//                            System.out.println("只有我获取到了");
                         }
                         latch.countDown();
                     } catch (Exception e) {
                         e.printStackTrace();
-                    }finally {
+                    }
+                    //如果注释掉说明没有释放锁，那么就是死锁
+                    finally {
                         cjbRedisLock.unlock();
                     }
                 }
