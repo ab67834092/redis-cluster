@@ -25,13 +25,14 @@ public class CjbRedisLockTest {
     @Test
     public void testString (){
         ExecutorService executorService = Executors.newCachedThreadPool();
-        int num = 1000;
+        int num = 100;
         final CountDownLatch latch = new CountDownLatch(num);
         for(int i=1;i<=num;i++){
             executorService.execute(new Runnable() {
                 @Override
                 public void run() {
-                    CjbRedisLock cjbRedisLock = new CjbRedisLock(jedisCluster,"992");
+                    CjbRedisLock cjbRedisLock = new CjbRedisLock(jedisCluster,"994");
+                    System.out.println(jedisCluster);
                     try {
                         if(cjbRedisLock.lock()){
                             //业务代码
@@ -42,9 +43,9 @@ public class CjbRedisLockTest {
                         e.printStackTrace();
                     }
                     //如果注释掉说明没有释放锁，那么就是死锁
-//                    finally {
-//                        cjbRedisLock.unlock();
-//                    }
+                    finally {
+                        cjbRedisLock.unlock();
+                    }
                 }
             });
         }

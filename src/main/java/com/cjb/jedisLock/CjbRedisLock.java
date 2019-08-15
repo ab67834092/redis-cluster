@@ -20,33 +20,27 @@ public class CjbRedisLock {
     private String lockKey;
 
     //锁失效时间 毫秒
-    private int expireTime = 60 * 1000;
+    private int expireTime = 10 * 1000;
 
     //锁等待时间 自旋时间 毫秒
     private int waitTime = 5*1000;
 
-    //自旋的间隔时间
+    //自旋的间隔时间 暂时没用到
     private int intervalTime=1000;
 
 
     private static final String LOCK_SUCCESS = "OK";
-
-    private static final Long RELEASE_SUCCESS = 1L;
 
     public CjbRedisLock(JedisCluster jedisCluster, String lockKey) {
         this.jedisCluster = jedisCluster;
         this.lockKey = lockKey;
     }
 
-    public CjbRedisLock(JedisCluster jedisCluster, String lockKey, int waitTime) {
+    public CjbRedisLock(JedisCluster jedisCluster, String lockKey, int expireTime) {
         this(jedisCluster, lockKey);
-        this.waitTime = waitTime;
-    }
-
-    public CjbRedisLock(JedisCluster jedisCluster, String lockKey, int waitTime, int expireTime) {
-        this(jedisCluster, lockKey, waitTime);
         this.expireTime = expireTime;
     }
+
 
     /**
      * 尝试锁
@@ -56,6 +50,7 @@ public class CjbRedisLock {
     public boolean lock(){
         String result  = jedisCluster.set(lockKey, UUID.randomUUID().toString(), SetParams.setParams().nx().px(expireTime));
         if (LOCK_SUCCESS.equals(result)) {
+            System.out.println("我获取到了锁");
             return true;
         }
         return false;
@@ -65,7 +60,7 @@ public class CjbRedisLock {
      * 释放锁
      */
     public void unlock(){
-        String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
-        jedisCluster.eval(script, Collections.singletonList(lockKey), Collections.singletonList(requestId));
+        String script = "if (redis.call('EXISTS', KEYS[1]) == 1) then return redis.call('del', KEYS[1]) else return 0 end";
+        jedisCluster.eval(script,1,lockKey);
     }
 }

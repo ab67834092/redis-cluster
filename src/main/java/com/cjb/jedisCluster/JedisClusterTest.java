@@ -21,5 +21,8 @@ public class JedisClusterTest {
     public void testString (){
         jedisCluster.set("name", "刘德华");
         System.out.println(jedisCluster.get("name"));
+        String script = "if (redis.call('EXISTS', KEYS[1]) == 1) then return redis.call('del', KEYS[1]) else return 0 end";
+        jedisCluster.eval(script,1,"name");
+        System.out.println(jedisCluster.exists("name"));
     }
 }
