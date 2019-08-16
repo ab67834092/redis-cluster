@@ -19,7 +19,7 @@ public class BusinessLocks {
     /**
      * 用户收益锁
      */
-    public static final ConcurrentHashMap<String,CjbRedisLock> userMoneyCountLocks = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String,CjbRedisLock> userMoneyCountLocks = new ConcurrentHashMap<>();
 
     public boolean acquireLock(String lockKey){
 
