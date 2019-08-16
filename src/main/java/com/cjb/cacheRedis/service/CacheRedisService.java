@@ -15,4 +15,14 @@ public interface CacheRedisService {
      * @return
      */
     BigDecimal getUserMoneyCount(String userCode);
+
+    /**
+     * 模拟插入钱
+     */
+    void insertMoneyCount(String userCode,String addMoney);
+
+    /**
+     * 清空redis
+     */
+    void flushRedis();
 }
