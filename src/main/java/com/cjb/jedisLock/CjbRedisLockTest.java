@@ -26,33 +26,42 @@ public class CjbRedisLockTest {
     public void testString (){
         ExecutorService executorService = Executors.newCachedThreadPool();
         int num = 100;
-        final CountDownLatch latch = new CountDownLatch(num);
+        final CountDownLatch begin = new CountDownLatch(1);
+        final CountDownLatch end = new CountDownLatch(num);
         for(int i=1;i<=num;i++){
-            executorService.execute(new Runnable() {
+            Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
-                    CjbRedisLock cjbRedisLock = new CjbRedisLock(jedisCluster,"994");
-                    System.out.println(jedisCluster);
+                    CjbRedisLock cjbRedisLock = null;
                     try {
+                        begin.await();
+                        cjbRedisLock = new CjbRedisLock(jedisCluster,"994");
+                        System.out.println(jedisCluster);
                         if(cjbRedisLock.lock()){
                             //业务代码
-//                            System.out.println("只有我获取到了");
+                            System.out.println("只有我获取到了");
                         }
-                        latch.countDown();
-                    } catch (Exception e) {
+                    } catch (InterruptedException e) {
                         e.printStackTrace();
-                    }
-                    //如果注释掉说明没有释放锁，那么就是死锁
-                    finally {
-                        cjbRedisLock.unlock();
+                    }finally {
+                        if(cjbRedisLock!=null){
+                            cjbRedisLock.unlock();
+                        }
+                        end.countDown();
                     }
                 }
-            });
+            };
+            executorService.submit(runnable);
         }
         try {
-            latch.await();
+            System.out.println("开始执行...");
+            begin.countDown();
+            end.await();
+            System.out.println("所有的都执行完了");
         } catch (InterruptedException e) {
             e.printStackTrace();
+        }finally {
+            executorService.shutdown();
         }
     }
 }
